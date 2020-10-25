@@ -35,19 +35,20 @@ def make_image_strip(imgs, name='image_strip'):
     dims = imgs[0].ndim
     if dims > 2:
         height, width, layers = imgs[0].shape
-        image_strip = np.zeros((height, width * len(imgs), layers), dtype=np.uint8)
+        image_strip = np.zeros((width, width * len(imgs), layers), dtype=np.uint8)
     else:
         height, width = imgs[0].shape
         image_strip = None
 
     for j in range(0, len(imgs)):
         if dims > 2:
-            image_strip[:, j*width: (j+1)*width, :] = imgs[j]
+            image_strip[0:height, j*width: (j+1)*width, :] = imgs[j]
         else:
             new_image = np.stack((imgs[j],) * 3, axis=-1)
 
     image = Image.fromarray(image_strip, 'RGB')
-    image.save(name + '.png')
+    image.save('./image_strips/' + name + '.png')
+
 
 def chunks(cap, n):
     """Yield successive n-sized chunks from lst."""
@@ -85,21 +86,22 @@ def chunk_to_objects_images(chunk, root, img_type='objects'):
     return list(images)
 
 
-def main(time_tic=2 * 35):
+def main(time_tic=2 * 35, amount=16):
     cap = dset.CocoDetection(root='./cocodoom',
                              annFile='./cocodoom/run-full-test.json')
 
     print('Number of samples: ', len(cap))
 
     subsets = list(chunks(cap, time_tic))
-    set_num = 50
     # depth_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root, img_type='depth')
     # object_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root)
-    vid = list(map(lambda x: np.array(x[0]), list(subsets[set_num])))
-    make_image_strip(np.array(vid))
+    for i in range(2, 2+amount):
+        vid = list(map(lambda x: np.array(x[0]), list(subsets[i])))
+        make_image_strip(np.array(vid), str(i-1).zfill(8))
+        print("Strip no." + str(i) + " is done")
     # make_video(np.array(object_vid), 'object')
     # make_video(np.array(depth_vid), 'depth')
 
 
 if __name__ == '__main__':
-    main(10 * 35)
+    main(5 * 35)
