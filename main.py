@@ -7,13 +7,13 @@ import torch.utils.data as utils
 from PIL import Image
 
 
-def make_Video(imgs, name='video'):
+def make_video(imgs, name='video'):
     dims = imgs[0].ndim
     if dims > 2:
         height, width, layers = imgs[0].shape
     else:
         height, width = imgs[0].shape
-    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+    fourcc = cv2.VideoWriter_fourcc(*'MPEG')
     video = cv2.VideoWriter(name + '.avi', fourcc, 20.0, (width, height))
 
     for j in range(0, len(imgs)):
@@ -22,6 +22,7 @@ def make_Video(imgs, name='video'):
             new_image[:, :, 0] = imgs[j][:, :, 2]
             new_image[:, :, 1] = imgs[j][:, :, 1]
             new_image[:, :, 2] = imgs[j][:, :, 0]
+            print(new_image.shape)
             video.write(new_image)
         else:
             new_image = np.stack((imgs[j],) * 3, axis=-1)
@@ -31,34 +32,61 @@ def make_Video(imgs, name='video'):
     cv2.destroyAllWindows()
 
 
+# def make_video_strip(imgs, name='video'):
+#     dims = imgs[0].ndim
+#     if dims > 2:
+#         height, width, layers = imgs[0].shape
+#         image_strip = np.zeros(((height * width) * len(imgs), layers), dtype=np.int8)
+#     else:
+#         height, width = imgs[0].shape
+#         image_strip = None
+#
+#     flat_image_dim = height * width
+#
+#     for j in range(0, len(imgs)):
+#         if dims > 2:
+#             new_image = np.zeros((height, width, 3), dtype=np.int8)
+#             new_image[:, :, 0] = imgs[j][:, :, 2]
+#             new_image[:, :, 1] = imgs[j][:, :, 1]
+#             new_image[:, :, 2] = imgs[j][:, :, 0]
+#             image_strip[j*flat_image_dim: (j+1)*flat_image_dim, :] = new_image.reshape((flat_image_dim, layers))
+#         else:
+#             new_image = np.stack((imgs[j],) * 3, axis=-1)
+#
+#     image_strip.reshape((height, width * len(imgs), layers))
+#     print(image_strip.shape)
+#     # cv2.imwrite('test.jpg', image_strip)
+#     # cv2.destroyAllWindows()
+
+
 def chunks(cap, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(cap), n):
         yield utils.Subset(cap, range(i - n, i))
 
 
-def extractPath(imageId, root, img_type='objects'):
-    runId = int(imageId // 10e8)
-    mapId = int((imageId - runId * 10e8) // 10e6)
-    mapidString = str(mapId)
-    if (mapId < 10):
-        mapidString = '0' + mapidString
-    tic = int(imageId - runId * 10e8 - mapId * 10e6)
+def extract_path(image_id, root, img_type='objects'):
+    run_id = int(image_id // 10e8)
+    map_id = int((image_id - run_id * 10e8) // 10e6)
+    map_id_string = str(map_id)
+    if map_id < 10:
+        map_id_string = '0' + map_id_string
+    tic = int(image_id - run_id * 10e8 - map_id * 10e6)
     string_tic = str(tic)
     zeros = ''
     for i in range(6 - len(string_tic)):
         zeros = '0' + zeros
-    return root + '/run' + str(runId) + '/map' + mapidString + '/' + img_type + '/' + zeros + str(tic) + '.png'
+    return root + '/run' + str(run_id) + '/map' + map_id_string + '/' + img_type + '/' + zeros + str(tic) + '.png'
 
 
-def chunkToObjectsImages(chunk, root, img_type='objects'):
+def chunk_to_objects_images(chunk, root, img_type='objects'):
     object_image_paths = []
     prev_id = 0
     for img, target in chunk:
-        imageId = target[0]['image_id'] if len(target) > 0 else prev_id + 1
-        prev_id = imageId
-        if imageId is not None:
-            object_image_paths.append(extractPath(imageId, root, img_type=img_type))
+        image_id = target[0]['image_id'] if len(target) > 0 else prev_id + 1
+        prev_id = image_id
+        if image_id is not None:
+            object_image_paths.append(extract_path(image_id, root, img_type=img_type))
         else:
             object_image_paths.append(None)
     images = map(lambda path: np.zeros((200, 320, 3), dtype=np.int8) if path is None else
@@ -68,19 +96,19 @@ def chunkToObjectsImages(chunk, root, img_type='objects'):
 
 
 def main(time_tic=10 * 35):
-    cap = dset.CocoDetection(root='../cocodoom',
-                             annFile='../cocodoom/run-full-test.json')
+    cap = dset.CocoDetection(root='./cocodoom',
+                             annFile='./cocodoom/run-full-test.json')
 
     print('Number of samples: ', len(cap))
 
     subsets = list(chunks(cap, time_tic))
     set_num = 50
-    depth_vid = chunkToObjectsImages(list(subsets[set_num]), cap.root, img_type='depth')
-    object_vid = chunkToObjectsImages(list(subsets[set_num]), cap.root)
+    # depth_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root, img_type='depth')
+    # object_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root)
     vid = list(map(lambda x: np.array(x[0]), list(subsets[set_num])))
-    make_Video(np.array(vid), 'rgb')
-    make_Video(np.array(object_vid), 'object')
-    make_Video(np.array(depth_vid), 'depth')
+    make_video(np.array(vid), 'rgb')
+    # make_video(np.array(object_vid), 'object')
+    # make_video(np.array(depth_vid), 'depth')
 
 
 if __name__ == '__main__':
