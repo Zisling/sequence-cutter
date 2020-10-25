@@ -18,11 +18,10 @@ def make_video(imgs, name='video'):
 
     for j in range(0, len(imgs)):
         if dims > 2:
-            new_image = np.zeros((imgs[j].shape[0], imgs[j].shape[1], 3), dtype=np.int8)
+            new_image = np.zeros((imgs[j].shape[0], imgs[j].shape[1], 3), dtype=np.uint8)
             new_image[:, :, 0] = imgs[j][:, :, 2]
             new_image[:, :, 1] = imgs[j][:, :, 1]
             new_image[:, :, 2] = imgs[j][:, :, 0]
-            print(new_image.shape)
             video.write(new_image)
         else:
             new_image = np.stack((imgs[j],) * 3, axis=-1)
@@ -32,32 +31,23 @@ def make_video(imgs, name='video'):
     cv2.destroyAllWindows()
 
 
-# def make_video_strip(imgs, name='video'):
-#     dims = imgs[0].ndim
-#     if dims > 2:
-#         height, width, layers = imgs[0].shape
-#         image_strip = np.zeros(((height * width) * len(imgs), layers), dtype=np.int8)
-#     else:
-#         height, width = imgs[0].shape
-#         image_strip = None
-#
-#     flat_image_dim = height * width
-#
-#     for j in range(0, len(imgs)):
-#         if dims > 2:
-#             new_image = np.zeros((height, width, 3), dtype=np.int8)
-#             new_image[:, :, 0] = imgs[j][:, :, 2]
-#             new_image[:, :, 1] = imgs[j][:, :, 1]
-#             new_image[:, :, 2] = imgs[j][:, :, 0]
-#             image_strip[j*flat_image_dim: (j+1)*flat_image_dim, :] = new_image.reshape((flat_image_dim, layers))
-#         else:
-#             new_image = np.stack((imgs[j],) * 3, axis=-1)
-#
-#     image_strip.reshape((height, width * len(imgs), layers))
-#     print(image_strip.shape)
-#     # cv2.imwrite('test.jpg', image_strip)
-#     # cv2.destroyAllWindows()
+def make_image_strip(imgs, name='image_strip'):
+    dims = imgs[0].ndim
+    if dims > 2:
+        height, width, layers = imgs[0].shape
+        image_strip = np.zeros((height, width * len(imgs), layers), dtype=np.uint8)
+    else:
+        height, width = imgs[0].shape
+        image_strip = None
 
+    for j in range(0, len(imgs)):
+        if dims > 2:
+            image_strip[:, j*width: (j+1)*width, :] = imgs[j]
+        else:
+            new_image = np.stack((imgs[j],) * 3, axis=-1)
+
+    image = Image.fromarray(image_strip, 'RGB')
+    image.save(name + '.png')
 
 def chunks(cap, n):
     """Yield successive n-sized chunks from lst."""
@@ -89,13 +79,13 @@ def chunk_to_objects_images(chunk, root, img_type='objects'):
             object_image_paths.append(extract_path(image_id, root, img_type=img_type))
         else:
             object_image_paths.append(None)
-    images = map(lambda path: np.zeros((200, 320, 3), dtype=np.int8) if path is None else
-    np.array(Image.open(path) if img_type != 'depth' else cv2.imread(path, cv2.IMREAD_GRAYSCALE), dtype=np.int8),
+    images = map(lambda path: np.zeros((200, 320, 3), dtype=np.uint8) if path is None else
+    np.array(Image.open(path) if img_type != 'depth' else cv2.imread(path, cv2.IMREAD_GRAYSCALE), dtype=np.uint8),
                  object_image_paths)
     return list(images)
 
 
-def main(time_tic=10 * 35):
+def main(time_tic=2 * 35):
     cap = dset.CocoDetection(root='./cocodoom',
                              annFile='./cocodoom/run-full-test.json')
 
@@ -106,10 +96,10 @@ def main(time_tic=10 * 35):
     # depth_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root, img_type='depth')
     # object_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root)
     vid = list(map(lambda x: np.array(x[0]), list(subsets[set_num])))
-    make_video(np.array(vid), 'rgb')
+    make_image_strip(np.array(vid))
     # make_video(np.array(object_vid), 'object')
     # make_video(np.array(depth_vid), 'depth')
 
 
 if __name__ == '__main__':
-    main(20 * 35)
+    main(10 * 35)
