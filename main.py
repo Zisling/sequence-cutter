@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import torch.utils.data as utils
 from PIL import Image
+import os
 
 
 def make_video(imgs, name='video'):
@@ -32,6 +33,12 @@ def make_video(imgs, name='video'):
 
 
 def make_image_strip(imgs, name='image_strip'):
+    """
+    Make a single image strip from given images. Outputs the images the folder.
+
+    @param imgs: a numpy array of images join to a strip.
+    @param name: the name of the output image strip.
+    """
     dims = imgs[0].ndim
     if dims > 2:
         height, width, layers = imgs[0].shape
@@ -47,6 +54,9 @@ def make_image_strip(imgs, name='image_strip'):
             new_image = np.stack((imgs[j],) * 3, axis=-1)
 
     image = Image.fromarray(image_strip, 'RGB')
+
+    if not os.path.exists('image_strips'):
+        os.makedirs('image_strips')
     image.save('./image_strips/' + name + '.png')
 
 
@@ -93,12 +103,18 @@ def main(time_tic=2 * 35, amount=16):
     print('Number of samples: ', len(cap))
 
     subsets = list(chunks(cap, time_tic))
+    # This code is needed for processing none rgb images, such as segmented images
     # depth_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root, img_type='depth')
     # object_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root)
+
+
+
     for i in range(2, 2+amount):
         vid = list(map(lambda x: np.array(x[0]), list(subsets[i])))
         make_image_strip(np.array(vid), str(i-1).zfill(8))
         print("Strip no." + str(i) + " is done")
+
+    # This code is needed for processing none rgb images, such as segmented images
     # make_video(np.array(object_vid), 'object')
     # make_video(np.array(depth_vid), 'depth')
 
