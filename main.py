@@ -61,12 +61,23 @@ def make_image_strip(imgs, name='image_strip'):
 
 
 def chunks(cap, n):
-    """Yield successive n-sized chunks from lst."""
+    """
+    :param cap: data base to split in to chunks(videos)
+    :param n: size of one chunk
+    :return: generator of list of spited data base
+    """
     for i in range(0, len(cap), n):
         yield utils.Subset(cap, range(i - n, i))
 
 
 def extract_path(image_id, root, img_type='objects'):
+    """
+    :param image_id: extract object or depth image base on original image
+    :param root: base folder of data sets images
+    :param img_type: chose type of image to return if objects return detection object image if depth return depth image
+            img_type = 'objects' or 'depth'
+    :return: path to the image by image_id
+    """
     run_id = int(image_id // 10e8)
     map_id = int((image_id - run_id * 10e8) // 10e6)
     map_id_string = str(map_id)
@@ -81,6 +92,13 @@ def extract_path(image_id, root, img_type='objects'):
 
 
 def chunk_to_objects_images(chunk, root, img_type='objects'):
+    """
+    :param chunk: a sequence of images (c)
+    :param root:base folder of data sets images
+    :param img_type: chose type of image to return if objects return detection object image if depth return depth image
+            img_type = 'objects' or 'depth'
+    :return: list of numpy array of the images
+    """
     object_image_paths = []
     prev_id = 0
     for img, target in chunk:
@@ -97,8 +115,8 @@ def chunk_to_objects_images(chunk, root, img_type='objects'):
 
 
 def main(time_tic=2 * 35, amount=16):
-    cap = dset.CocoDetection(root='./cocodoom',
-                             annFile='./cocodoom/run-full-test.json')
+    cap = dset.CocoDetection(root='../cocodoom',
+                             annFile='../cocodoom/run-full-test.json')
 
     print('Number of samples: ', len(cap))
 
