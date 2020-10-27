@@ -177,8 +177,9 @@ def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, v
 
     for i in choices:
         vid = load_images(subsets_paths[i])
-        # if shape:
-        #     vid = np.array(list(map(lambda x: np.array(resizeimage.resize_cover(x[0], shape)), load_images(subsets_paths[i]))))
+        if shape:
+            vid = np.array(list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x, "RGB"), shape)),
+                                    load_images(subsets_paths[i]))))
         if strip:
             make_image_strip(vid, str(i - 1).zfill(8))
         if video:
@@ -191,4 +192,4 @@ def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, v
 
 
 if __name__ == '__main__':
-    main('../cocodoom/run1', 5 * 35,amount=1, strip=True, video=True)
+    main('../cocodoom/run1', 5 * 35, amount=40, strip=True, video=True, shape=(80, 80))
