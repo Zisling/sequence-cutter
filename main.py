@@ -1,4 +1,5 @@
 import os
+import re
 
 import cv2
 import numpy as np
@@ -24,7 +25,7 @@ def make_video(imgs, name='video'):
 
     if not os.path.exists('videos'):
         os.makedirs('videos')
-    video = cv2.VideoWriter('./videos/' + name + '.avi', fourcc, 20.0, (width, height))
+    video = cv2.VideoWriter('./videos/' + name + '.avi', fourcc, 35.0, (width, height))
 
     for j in range(0, len(imgs)):
         if dims > 2:
@@ -123,51 +124,61 @@ def chunk_to_objects_images(chunk, root, img_type='objects'):
     return list(images)
 
 
-# def resize(imgs, shape, sharpen=False):
-#     reshaped = []
-#     # for img in imgs:
-#
-#         # img = Image.fromarray(img)
-#         # img = resizeimage.resize_cover(img, shape)
-#         # if sharpen:
-#         #     img = img.filter(ImageFilter.SHARPEN)
-#         # img = np.array(img)
-#         # reshaped.append(img)
-#     return np.array(reshaped)
+def resize(imgs, shape, sharpen=False):
+    reshaped = []
+
+    for img in imgs:
+        img = Image.fromarray(img)
+        img = resizeimage.resize_cover(img, shape)
+        if sharpen:
+            img = img.filter(ImageFilter.SHARPEN)
+        img = np.array(img)
+        reshaped.append(img)
+
+    return np.array(reshaped)
 
 
-def main(time_tic=2 * 35, amount=20, strip=False, video=False, shape=None, sharpen=False):
-    cap = dset.CocoDetection(root='./cocodoom',
-                             annFile='./cocodoom/run-full-test.json')
+def load_cocodoom_images(path, size, pic_type='rgb'):
+    data = []
+    index = 0
+    for dirname in os.listdir(path):
+        if re.search('map', dirname):
+            dir_path = '/'.join((path, dirname, pic_type))
+            for filename in os.listdir(dir_path):
+                image_path = '/'.join((dir_path, filename))
+                img = Image.open(image_path)
+                img = img.convert('RGB')
+                img = np.array(img)
+                index += 1
+                data.append(img)
+                if index % size == 0:
+                    yield np.array(data)
+                    data = []
 
-    print('Number of samples: ', len(cap))
 
-    subsets = list(chunks(cap, time_tic))
+def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, video=False, shape=None, sharpen=False):
+    data = load_cocodoom_images(path, chunk_size)
 
-    # This code is needed for processing none rgb images, such as segmented images
-    # depth_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root, img_type='depth')
-    # object_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root)
-
-    choices = np.random.choice(len(subsets), amount, replace=True)
-
-    for i in choices:
-        vid = np.array(list(map(lambda x: np.array(x[0]), list(subsets[i]))))
-        if shape:
-            vid = np.array(list(map(lambda x: np.array(resizeimage.resize_cover(x[0], shape)), list(subsets[i]))))
-        if strip:
-            make_image_strip(vid, str(i - 1).zfill(8))
-        if video:
-            make_video(vid, str(i - 1).zfill(8))
-        if not (strip or video):
-            # TODO: implement a case for neither a video nor a strip
-            pass
-
-        print("Strip no." + str(i) + " is done")
-
-    # This code is needed for processing none rgb images, such as segmented images
-    # make_video(np.array(object_vid), 'object')
-    # make_video(np.array(depth_vid), 'depth')
+    make_video(next(data))
+    # if chunks_to_take:
+    #     choices = chunks_to_take
+    # else:
+    #     choices = np.random.choice(len(subsets), amount, replace=True)
+    #
+    # for i in choices:
+    #     vid = np.array(list(map(lambda x: np.array(x[0]), list(subsets[i]))))
+    #     if shape:
+    #         vid = np.array(list(map(lambda x: np.array(resizeimage.resize_cover(x[0], shape)), list(subsets[i]))))
+    #     if strip:
+    #         make_image_strip(vid, str(i - 1).zfill(8))
+    #     if video:
+    #         make_video(vid, str(i - 1).zfill(8))
+    #     if not (strip or video):
+    #         # TODO: implement a case for neither a video nor a strip
+    #         pass
+    #
+    #     print("Strip no." + str(i) + " is done")
 
 
 if __name__ == '__main__':
-    main(5 * 35, amount=1, strip=True, video=True,)
+    main('cocodoom/run1', 5 * 35, strip=True, video=True)
