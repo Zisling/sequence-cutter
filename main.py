@@ -7,6 +7,7 @@ import torch.utils.data as utils
 import torchvision.datasets as dset
 from PIL import Image, ImageFilter
 from resizeimage import resizeimage
+import itertools
 
 
 def make_video(imgs, name='video'):
@@ -70,7 +71,7 @@ def make_image_strip(imgs, name='image_strip'):
     image.save('./image_strips/' + name + '.png')
 
 
-def chunks(cap, n):
+def chunks_torch_dataset(cap, n):
     """
     :param cap: data base to split in to chunks(videos)
     :param n: size of one chunk
@@ -78,6 +79,12 @@ def chunks(cap, n):
     """
     for i in range(0, len(cap), n):
         yield utils.Subset(cap, range(i - n, i))
+
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 
 def extract_path(image_id, root, img_type='objects'):
@@ -138,47 +145,50 @@ def resize(imgs, shape, sharpen=False):
     return np.array(reshaped)
 
 
-def load_cocodoom_images(path, size, pic_type='rgb'):
+def load_cocodoom_images_paths(path, pic_type='rgb'):
     data = []
-    index = 0
-    for dirname in os.listdir(path):
-        if re.search('map', dirname):
+    for dirname in sorted(os.listdir(path)):
+        if re.search('map', dirname) is not None:
             dir_path = '/'.join((path, dirname, pic_type))
-            for filename in os.listdir(dir_path):
+            for filename in sorted(os.listdir(dir_path)):
                 image_path = '/'.join((dir_path, filename))
-                img = Image.open(image_path)
-                img = img.convert('RGB')
-                img = np.array(img)
-                index += 1
-                data.append(img)
-                if index % size == 0:
-                    yield np.array(data)
-                    data = []
+                data.append(image_path)
+    return list(data)
+
+
+def load_image(image_path):
+    img = Image.open(image_path)
+    img = img.convert('RGB')
+    return np.array(img, dtype=np.uint8)
+
+
+def load_images(image_paths):
+    return np.array(list(map(load_image, image_paths)))
 
 
 def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, video=False, shape=None, sharpen=False):
-    data = load_cocodoom_images(path, chunk_size)
+    data_path = load_cocodoom_images_paths(path)
+    subsets_paths = list(chunks(data_path, chunk_size))
 
-    make_video(next(data))
-    # if chunks_to_take:
-    #     choices = chunks_to_take
-    # else:
-    #     choices = np.random.choice(len(subsets), amount, replace=True)
-    #
-    # for i in choices:
-    #     vid = np.array(list(map(lambda x: np.array(x[0]), list(subsets[i]))))
-    #     if shape:
-    #         vid = np.array(list(map(lambda x: np.array(resizeimage.resize_cover(x[0], shape)), list(subsets[i]))))
-    #     if strip:
-    #         make_image_strip(vid, str(i - 1).zfill(8))
-    #     if video:
-    #         make_video(vid, str(i - 1).zfill(8))
-    #     if not (strip or video):
-    #         # TODO: implement a case for neither a video nor a strip
-    #         pass
-    #
-    #     print("Strip no." + str(i) + " is done")
+    if chunks_to_take:
+        choices = chunks_to_take
+    else:
+        choices = np.random.choice(len(subsets_paths), amount, replace=True)
+
+    for i in choices:
+        vid = load_images(subsets_paths[i])
+        # if shape:
+        #     vid = np.array(list(map(lambda x: np.array(resizeimage.resize_cover(x[0], shape)), load_images(subsets_paths[i]))))
+        if strip:
+            make_image_strip(vid, str(i - 1).zfill(8))
+        if video:
+            make_video(vid, str(i - 1).zfill(8))
+        if not (strip or video):
+            # TODO: implement a case for neither a video nor a strip
+            pass
+
+        print("Strip no." + str(i) + " is done")
 
 
 if __name__ == '__main__':
-    main('cocodoom/run1', 5 * 35, strip=True, video=True)
+    main('../cocodoom/run1', 5 * 35,amount=1, strip=True, video=True)

@@ -220,3 +220,5 @@ cocodoom/
 .idea/modules.xml
 .idea/sequence-cuter.iml
 .idea/vcs.xml
+/image_strips/
+/videos/
