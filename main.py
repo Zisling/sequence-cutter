@@ -1,21 +1,30 @@
-import torchvision.datasets as dset
-import torchvision.transforms as transforms
-import sys
+import os
+
 import cv2
 import numpy as np
 import torch.utils.data as utils
-from PIL import Image
-import os
+import torchvision.datasets as dset
+from PIL import Image, ImageFilter
+from resizeimage import resizeimage
 
 
 def make_video(imgs, name='video'):
+    """
+       Make a video from given images. Outputs the video into videos folder.
+
+       @param imgs: a numpy array of images join to a video.
+       @param name: the name of the output video.
+       """
     dims = imgs[0].ndim
     if dims > 2:
         height, width, layers = imgs[0].shape
     else:
         height, width = imgs[0].shape
     fourcc = cv2.VideoWriter_fourcc(*'MPEG')
-    video = cv2.VideoWriter(name + '.avi', fourcc, 20.0, (width, height))
+
+    if not os.path.exists('videos'):
+        os.makedirs('videos')
+    video = cv2.VideoWriter('./videos/' + name + '.avi', fourcc, 20.0, (width, height))
 
     for j in range(0, len(imgs)):
         if dims > 2:
@@ -42,14 +51,14 @@ def make_image_strip(imgs, name='image_strip'):
     dims = imgs[0].ndim
     if dims > 2:
         height, width, layers = imgs[0].shape
-        image_strip = np.zeros((width, width * len(imgs), layers), dtype=np.uint8)
+        image_strip = np.zeros((height, width * len(imgs), layers), dtype=np.uint8)
     else:
         height, width = imgs[0].shape
         image_strip = None
 
     for j in range(0, len(imgs)):
         if dims > 2:
-            image_strip[0:height, j*width: (j+1)*width, :] = imgs[j]
+            image_strip[0:height, j * width: (j + 1) * width, :] = imgs[j]
         else:
             new_image = np.stack((imgs[j],) * 3, axis=-1)
 
@@ -114,22 +123,45 @@ def chunk_to_objects_images(chunk, root, img_type='objects'):
     return list(images)
 
 
-def main(time_tic=2 * 35, amount=16):
-    cap = dset.CocoDetection(root='../cocodoom',
-                             annFile='../cocodoom/run-full-test.json')
+# def resize(imgs, shape, sharpen=False):
+#     reshaped = []
+#     # for img in imgs:
+#
+#         # img = Image.fromarray(img)
+#         # img = resizeimage.resize_cover(img, shape)
+#         # if sharpen:
+#         #     img = img.filter(ImageFilter.SHARPEN)
+#         # img = np.array(img)
+#         # reshaped.append(img)
+#     return np.array(reshaped)
+
+
+def main(time_tic=2 * 35, amount=20, strip=False, video=False, shape=None, sharpen=False):
+    cap = dset.CocoDetection(root='./cocodoom',
+                             annFile='./cocodoom/run-full-test.json')
 
     print('Number of samples: ', len(cap))
 
     subsets = list(chunks(cap, time_tic))
+
     # This code is needed for processing none rgb images, such as segmented images
     # depth_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root, img_type='depth')
     # object_vid = chunk_to_objects_images(list(subsets[set_num]), cap.root)
 
+    choices = np.random.choice(len(subsets), amount, replace=True)
 
+    for i in choices:
+        vid = np.array(list(map(lambda x: np.array(x[0]), list(subsets[i]))))
+        if shape:
+            vid = np.array(list(map(lambda x: np.array(resizeimage.resize_cover(x[0], shape)), list(subsets[i]))))
+        if strip:
+            make_image_strip(vid, str(i - 1).zfill(8))
+        if video:
+            make_video(vid, str(i - 1).zfill(8))
+        if not (strip or video):
+            # TODO: implement a case for neither a video nor a strip
+            pass
 
-    for i in range(2, 2+amount):
-        vid = list(map(lambda x: np.array(x[0]), list(subsets[i])))
-        make_image_strip(np.array(vid), str(i-1).zfill(8))
         print("Strip no." + str(i) + " is done")
 
     # This code is needed for processing none rgb images, such as segmented images
@@ -138,4 +170,4 @@ def main(time_tic=2 * 35, amount=16):
 
 
 if __name__ == '__main__':
-    main(5 * 35)
+    main(5 * 35, amount=1, strip=True, video=True,)
