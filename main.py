@@ -192,4 +192,4 @@ def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, v
 
 
 if __name__ == '__main__':
-    main('../cocodoom/run1', 5 * 35, amount=40, strip=True, video=True, shape=(80, 80))
+    main('../cocodoom/run1', 2 * 35, amount=100, strip=True, video=False, shape=(64, 64))
