@@ -7,7 +7,10 @@ import torch.utils.data as utils
 import torchvision.datasets as dset
 from PIL import Image, ImageFilter
 from resizeimage import resizeimage
+from collections import Counter
 import itertools
+
+from torchvision.transforms import transforms
 
 
 def make_video(imgs, name='video'):
@@ -43,12 +46,13 @@ def make_video(imgs, name='video'):
     cv2.destroyAllWindows()
 
 
-def make_image_strip(imgs, name='image_strip'):
+def make_image_strip(imgs, name='image_strip', category=0):
     """
     Make a single image strip from given images. Outputs the images the folder.
 
     @param imgs: a numpy array of images join to a strip.
     @param name: the name of the output image strip.
+    @param category: the category of the video
     """
     dims = imgs[0].ndim
     if dims > 2:
@@ -68,7 +72,7 @@ def make_image_strip(imgs, name='image_strip'):
 
     if not os.path.exists('image_strips'):
         os.makedirs('image_strips')
-    image.save('./image_strips/' + name + '.png')
+    image.save('./image_strips/' + str(category) + '/' + name + '.png')
 
 
 def chunks_torch_dataset(cap, n):
@@ -166,7 +170,67 @@ def load_images(image_paths):
     return np.array(list(map(load_image, image_paths)))
 
 
+def load_images_category(image_paths, data_set):
+    category = get_categories(paths=image_paths, dataset=data_set)
+    return np.array(list(map(load_image, image_paths))), category
+
+
+def get_category(target):
+    categories = []
+    for category in target:
+        categories.append(category['category_id'])
+    return categories
+
+
+def path_to_image_id(path):
+    run_index = re.search('run', path).end()
+    run_id = int(path[run_index])
+    map_index = re.search('map', path).end()
+    map_id = int(path[map_index: map_index + 2])
+    tic_index = re.search("/\d\d\d\d\d\d\.", path).span()
+    tic = int(path[tic_index[0] + 1: tic_index[1] - 1])
+    return int(10e8 * run_id + 10e6 * map_id + tic), run_id, map_id, tic
+
+
+def get_target(path, dataset, offset):
+    image_id, run_id, map_id, tic = path_to_image_id(path)
+    if tic - offset < len(dataset):
+        _, target = dataset[tic - offset]
+        return target
+    else:
+        return []
+
+
+def get_categories(paths, dataset):
+    categories = []
+    for path in paths:
+        offset = 0
+        target = get_target(path, dataset, offset)
+        if target:
+            image_id, *rest = path_to_image_id(path)
+            offset = np.abs((int(target[0]['image_id']) % int(1e6)) - (image_id % int(1e6)))
+            target = get_target(path, dataset, offset)
+            categories.append(get_category(target))
+    if categories:  # if no object in the video return 2
+        flat_categories = []
+        for cat in categories:
+            for c in cat:
+                flat_categories.append(c)
+        count = Counter(flat_categories)
+        # if less then object id of monster return 0 else 1
+        if count.most_common(1) and count.most_common(1)[0][0] < 23:
+            return 0
+        else:
+            return 1
+    else:
+        return 2
+
+
 def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, video=False, shape=None, sharpen=False):
+    dataset = dset.CocoDetection(root='../cocodoom/',
+                                 annFile='../cocodoom/run-full-train.json',
+                                 transform=transforms.ToTensor())
+
     data_path = load_cocodoom_images_paths(path)
     subsets_paths = list(chunks(data_path, chunk_size))
 
@@ -176,19 +240,19 @@ def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, v
         choices = np.random.choice(len(subsets_paths), amount, replace=True)
 
     for i in choices:
-        vid = load_images(subsets_paths[i])
+        vid, category = load_images_category(subsets_paths[i], dataset)
         if shape:
             vid = np.array(list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x, "RGB"), shape)),
                                     load_images(subsets_paths[i]))))
         if strip:
-            make_image_strip(vid, str(i - 1).zfill(8))
+            make_image_strip(vid, str(i - 1).zfill(8), category)
         if video:
             make_video(vid, str(i - 1).zfill(8))
         if not (strip or video):
             # TODO: implement a case for neither a video nor a strip
             pass
 
-        print("Strip no." + str(i) + " is done")
+        print("Strip no." + str(i) + " is done " + "category " + str(category))
 
 
 if __name__ == '__main__':
