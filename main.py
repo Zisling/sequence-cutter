@@ -60,15 +60,17 @@ def make_image_strip(imgs, name='image_strip', category=0):
         image_strip = np.zeros((height, width * len(imgs), layers), dtype=np.uint8)
     else:
         height, width = imgs[0].shape
-        image_strip = None
-
+        image_strip = np.zeros((height, width * len(imgs)), imgs.dtype)
     for j in range(0, len(imgs)):
         if dims > 2:
             image_strip[0:height, j * width: (j + 1) * width, :] = imgs[j]
         else:
-            new_image = np.stack((imgs[j],) * 3, axis=-1)
-
-    image = Image.fromarray(image_strip, 'RGB')
+            image_strip[0:height, j * width: (j + 1) * width] = imgs[j]
+    if dims > 2:
+        image = Image.fromarray(image_strip, 'RGB')
+    else:
+        image = Image.fromarray(image_strip, 'L')
+        image = image.convert('RGB')
 
     if not os.path.exists('image_strips'):
         os.makedirs('image_strips')
@@ -166,8 +168,17 @@ def load_image(image_path):
     return np.array(img, dtype=np.uint8)
 
 
+def load_image_grey(image_path):
+    img = Image.open(image_path)
+    return np.array(img, dtype=np.uint8)
+
+
 def load_images(image_paths):
     return np.array(list(map(load_image, image_paths)))
+
+
+def load_images_grey(image_paths):
+    return np.array(list(map(load_image_grey, image_paths)))
 
 
 def load_images_category(image_paths, data_set):
@@ -231,23 +242,48 @@ def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, v
                                  annFile='../cocodoom/run-full-train.json',
                                  transform=transforms.ToTensor())
 
-    data_path = load_cocodoom_images_paths(path)
-    subsets_paths = list(chunks(data_path, chunk_size))
+    data_path_rgb = load_cocodoom_images_paths(path)
+    data_path_objects = load_cocodoom_images_paths(path, pic_type='objects')
+    data_path_depth = load_cocodoom_images_paths(path, pic_type='depth')
+    subsets_paths_rgb = list(chunks(data_path_rgb, chunk_size))
+    subsets_paths_objects = list(chunks(data_path_objects, chunk_size))
+    subsets_paths_depth = list(chunks(data_path_depth, chunk_size))
 
     if chunks_to_take:
         choices = chunks_to_take
     else:
-        choices = np.random.choice(len(subsets_paths), amount, replace=True)
+        choices = np.random.choice(len(subsets_paths_rgb), amount, replace=True)
 
     for i in choices:
-        vid, category = load_images_category(subsets_paths[i], dataset)
+        vid_rgb, category = load_images_category(subsets_paths_rgb[i], dataset)
+        vid_objects = load_images(subsets_paths_objects[i])
+        vid_rgb_objects = vid_rgb.copy()
+        #  mask the object and the background
+        vid_rgb_objects[:, :, :, 0][vid_objects[:, :, :, 2] == 128] = 0
+        vid_rgb_objects[:, :, :, 1][vid_objects[:, :, :, 2] == 128] = 0
+        vid_rgb_objects[:, :, :, 2][vid_objects[:, :, :, 2] == 128] = 0
+        vid_rgb_background = vid_rgb - vid_rgb_objects
+
+        vid_depth = load_images_grey(subsets_paths_depth[i])
         if shape:
-            vid = np.array(list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x, "RGB"), shape)),
-                                    load_images(subsets_paths[i]))))
+            vid_rgb_objects = np.array(
+                list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x, "RGB"), shape)),
+                         vid_rgb_objects)))
+            vid_rgb_background = np.array(
+                list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x, "RGB"), shape)),
+                         vid_rgb_background)))
+            vid_depth = np.array(
+                list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x, 'L'), shape)),
+                         vid_depth)))
         if strip:
-            make_image_strip(vid, str(i - 1).zfill(8), category)
+            make_image_strip(vid_rgb_objects, str(i - 1).zfill(8), category)
+            make_image_strip(vid_rgb_background, str(i - 1).zfill(8) + 'back', category)
+            multi_channel_array = np.concatenate((vid_rgb_objects, vid_rgb_background), axis=-1)
+            np.save('./image_strips/' + str(category) + '/' + str(i - 1).zfill(8) + '.npy', multi_channel_array)
+
+            make_image_strip(vid_depth, str(i - 1).zfill(8) + 'd', category)
         if video:
-            make_video(vid, str(i - 1).zfill(8))
+            make_video(vid_rgb, str(i - 1).zfill(8))
         if not (strip or video):
             # TODO: implement a case for neither a video nor a strip
             pass
@@ -256,4 +292,4 @@ def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, v
 
 
 if __name__ == '__main__':
-    main('../cocodoom/run1', 2 * 35, amount=100, strip=True, video=False, shape=(64, 64))
+    main('../cocodoom/run1', 4 * 35, amount=100, chunks_to_take=[2], strip=True, video=False, shape=(96, 96))
