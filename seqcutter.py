@@ -269,11 +269,11 @@ def main(path, root, ann_file, video_size=2 * 35, amount=20, strip=False, array=
     subsets_paths_objects = list(chunks(data_path_objects, video_size))
     subsets_paths_depth = list(chunks(data_path_depth, video_size))
 
-    choices = np.random.choice(len(subsets_paths_rgb), amount, replace=True)
+    choices = np.random.choice(len(subsets_paths_rgb), amount, replace=False)
 
-    for i in choices:
-        vid_rgb, category = load_images_category(subsets_paths_rgb[i], dataset)
-        vid_objects = load_images(subsets_paths_objects[i])
+    for i, ndx in enumerate(choices):
+        vid_rgb, category = load_images_category(subsets_paths_rgb[ndx], dataset)
+        vid_objects = load_images(subsets_paths_objects[ndx])
         vid_rgb_objects = vid_rgb.copy()
 
         # use mask to separate the objects and the background to 2 different 3 channel layer
@@ -285,7 +285,7 @@ def main(path, root, ann_file, video_size=2 * 35, amount=20, strip=False, array=
         vid_rgb_background = vid_rgb - vid_rgb_objects
 
         # load depth images
-        vid_depth = load_images_grey(subsets_paths_depth[i])
+        vid_depth = load_images_grey(subsets_paths_depth[ndx])
 
         if shape:
             vid_rgb_objects = np.array(
@@ -300,24 +300,24 @@ def main(path, root, ann_file, video_size=2 * 35, amount=20, strip=False, array=
         # create a strip of images for each kind of image (objects, background, depth)
         # added for debug purposes or for use in special cases
         if strip:
-            make_image_strip(vid_rgb_objects, str(i - 1).zfill(8), category)
-            make_image_strip(vid_rgb_background, str(i - 1).zfill(8) + 'back', category)
-            make_image_strip(vid_depth, str(i - 1).zfill(8) + 'd', category)
+            make_image_strip(vid_rgb_objects, str(ndx).zfill(8), category)
+            make_image_strip(vid_rgb_background, str(ndx).zfill(8) + 'back', category)
+            make_image_strip(vid_depth, str(ndx).zfill(8) + 'd', category)
         # creates an array representation of the video, with shape:
         #   (video_length_in_frames, frame_size_x, frame_size_y, 7)
         #   last dimension is 7 as there are 7 channels in each frame
         if array:
             multi_channel_array = np.concatenate(
                 (vid_rgb_objects, vid_rgb_background, vid_depth.reshape((*vid_depth.shape, 1))), axis=-1)
-            np.save('./image_strips/' + str(category) + '/' + str(i - 1).zfill(8) + '.npy', multi_channel_array)
+            np.save('./image_strips/' + str(category) + '/' + str(ndx).zfill(8) + '.npy', multi_channel_array)
 
         if video:
-            make_video(vid_rgb, str(i - 1).zfill(8))
+            make_video(vid_rgb, str(ndx).zfill(8))
         if not (strip or video):
             # TODO: implement a case for neither a video nor a strip
             pass
 
-        print("Strip no." + str(i-1) + " is done " + "category " + str(category))
+        print("Strip no." + str(i+1) + " is done " + "category " + str(category))
 
 
 if __name__ == '__main__':
