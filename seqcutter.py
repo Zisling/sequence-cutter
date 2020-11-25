@@ -1,25 +1,40 @@
+"""Sequnce cutter.
+Cuts the cocodoom dataset into smaller videos, using the masks to generate different kinds of files. Can currently
+generate image strips and numpy array files.
+
+Usage: seqcutter.py [options] <coco-path> <json-path> <images_path>
+
+Options:
+    --video_size=<int>          length in frames of the video[default: 70]
+    --amount=<int>              number of videos to cut from the images[default: 20]
+    --make_strip                when specified, will generate strips of images
+    --make_array                when specified will generate numpy array files
+    --use_masks                 when specified will use the cocodoom masks to separate objects from background, and add
+                                the depth images
+    --shape=<int>               when specified, will resize the input images to this square size[default: ]
+"""
 import os
 import re
+from collections import Counter
 
+from docopt import docopt
 import cv2
 import numpy as np
 import torch.utils.data as utils
 import torchvision.datasets as dset
 from PIL import Image, ImageFilter
 from resizeimage import resizeimage
-from collections import Counter
-import itertools
-
 from torchvision.transforms import transforms
 
 
 def make_video(imgs, name='video'):
     """
-       Make a video from given images. Outputs the video into videos folder.
+        TODO: this needs to be fixed.
+        Make a video from given images. Outputs the video into videos folder.
 
-       @param imgs: a numpy array of images join to a video.
-       @param name: the name of the output video.
-       """
+        @param imgs: a numpy array of images join to a video.
+        @param name: the name of the output video.
+    """
     dims = imgs[0].ndim
     if dims > 2:
         height, width, layers = imgs[0].shape
@@ -239,33 +254,39 @@ def get_categories(paths, dataset):
         return 2
 
 
-def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, video=False, shape=None, sharpen=False):
-    dataset = dset.CocoDetection(root='../cocodoom/',
-                                 annFile='../cocodoom/run-full-train.json',
+def main(path, root, ann_file, video_size=2 * 35, amount=20, strip=False, array=True, video=False, shape=None):
+
+    dataset = dset.CocoDetection(root=root,
+                                 annFile=ann_file,
                                  transform=transforms.ToTensor())
 
     data_path_rgb = load_cocodoom_images_paths(path)
     data_path_objects = load_cocodoom_images_paths(path, pic_type='objects')
     data_path_depth = load_cocodoom_images_paths(path, pic_type='depth')
-    subsets_paths_rgb = list(chunks(data_path_rgb, chunk_size))
-    subsets_paths_objects = list(chunks(data_path_objects, chunk_size))
-    subsets_paths_depth = list(chunks(data_path_depth, chunk_size))
-    if chunks_to_take:
-        choices = chunks_to_take
-    else:
-        choices = np.random.choice(len(subsets_paths_rgb), amount, replace=True)
+
+    # breaking the data to chunks of same sizes
+    subsets_paths_rgb = list(chunks(data_path_rgb, video_size))
+    subsets_paths_objects = list(chunks(data_path_objects, video_size))
+    subsets_paths_depth = list(chunks(data_path_depth, video_size))
+
+    choices = np.random.choice(len(subsets_paths_rgb), amount, replace=True)
 
     for i in choices:
         vid_rgb, category = load_images_category(subsets_paths_rgb[i], dataset)
         vid_objects = load_images(subsets_paths_objects[i])
         vid_rgb_objects = vid_rgb.copy()
-        #  mask the object and the background
+
+        # use mask to separate the objects and the background to 2 different 3 channel layer
+        # separate objects
         vid_rgb_objects[:, :, :, 0][vid_objects[:, :, :, 2] == 128] = 0
         vid_rgb_objects[:, :, :, 1][vid_objects[:, :, :, 2] == 128] = 0
         vid_rgb_objects[:, :, :, 2][vid_objects[:, :, :, 2] == 128] = 0
+        # separate background
         vid_rgb_background = vid_rgb - vid_rgb_objects
 
+        # load depth images
         vid_depth = load_images_grey(subsets_paths_depth[i])
+
         if shape:
             vid_rgb_objects = np.array(
                 list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x, "RGB"), shape)),
@@ -276,10 +297,16 @@ def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, v
             vid_depth = np.array(
                 list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x), shape)),
                          vid_depth)))
+        # create a strip of images for each kind of image (objects, background, depth)
+        # added for debug purposes or for use in special cases
         if strip:
             make_image_strip(vid_rgb_objects, str(i - 1).zfill(8), category)
             make_image_strip(vid_rgb_background, str(i - 1).zfill(8) + 'back', category)
             make_image_strip(vid_depth, str(i - 1).zfill(8) + 'd', category)
+        # creates an array representation of the video, with shape:
+        #   (video_length_in_frames, frame_size_x, frame_size_y, 7)
+        #   last dimension is 7 as there are 7 channels in each frame
+        if array:
             multi_channel_array = np.concatenate(
                 (vid_rgb_objects, vid_rgb_background, vid_depth.reshape((*vid_depth.shape, 1))), axis=-1)
             np.save('./image_strips/' + str(category) + '/' + str(i - 1).zfill(8) + '.npy', multi_channel_array)
@@ -290,8 +317,14 @@ def main(path, chunk_size=2 * 35, amount=20, chunks_to_take=None, strip=False, v
             # TODO: implement a case for neither a video nor a strip
             pass
 
-        print("Strip no." + str(i) + " is done " + "category " + str(category))
+        print("Strip no." + str(i-1) + " is done " + "category " + str(category))
 
 
 if __name__ == '__main__':
-    main('../cocodoom/run1', 4 * 35, amount=100, chunks_to_take=[50], strip=True, video=False, shape=(96, 96))
+    args = docopt(__doc__)
+    print(args)
+    shape = int(args['--shape'])
+    shape = (shape, shape)
+    main(args['<images_path>'], args['<coco-path>'], args['<json-path>'],
+         int(args['--video_size']), int(args['--amount']), args['--make_strip'], args['--make_array'],
+         video=False, shape=shape)
