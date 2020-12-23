@@ -154,18 +154,18 @@ def chunk_to_objects_images(chunk, root, img_type='objects'):
     return list(images)
 
 
-def resize(imgs, shape, sharpen=False):
-    reshaped = []
-
-    for img in imgs:
-        img = Image.fromarray(img)
-        img = resizeimage.resize_cover(img, shape)
-        if sharpen:
-            img = img.filter(ImageFilter.SHARPEN)
-        img = np.array(img)
-        reshaped.append(img)
-
-    return np.array(reshaped)
+# def resize(imgs, shape, sharpen=False):
+#     reshaped = []
+#
+#     for img in imgs:
+#         img = Image.fromarray(img)
+#         img = resizeimage.resize_cover(img, shape)
+#         if sharpen:
+#             img = img.filter(ImageFilter.SHARPEN)
+#         img = np.array(img)
+#         reshaped.append(img)
+#
+#     return np.array(reshaped)
 
 
 def load_cocodoom_images_paths(path, pic_type='rgb'):
@@ -255,7 +255,6 @@ def get_categories(paths, dataset):
 
 
 def main(path, root, ann_file, video_size=2 * 35, amount=20, strip=False, array=True, video=False, shape=None):
-
     dataset = dset.CocoDetection(root=root,
                                  annFile=ann_file,
                                  transform=transforms.ToTensor())
@@ -289,13 +288,13 @@ def main(path, root, ann_file, video_size=2 * 35, amount=20, strip=False, array=
 
         if shape:
             vid_rgb_objects = np.array(
-                list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x, "RGB"), shape)),
+                list(map(lambda x: np.array((Image.fromarray(x, "RGB").resize(shape, Image.ANTIALIAS))),
                          vid_rgb_objects)))
             vid_rgb_background = np.array(
-                list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x, "RGB"), shape)),
+                list(map(lambda x: np.array((Image.fromarray(x, "RGB").resize(shape, Image.ANTIALIAS))),
                          vid_rgb_background)))
             vid_depth = np.array(
-                list(map(lambda x: np.array(resizeimage.resize_cover(Image.fromarray(x), shape)),
+                list(map(lambda x: np.array(Image.fromarray(x).resize(shape, Image.ANTIALIAS)),
                          vid_depth)))
         # create a strip of images for each kind of image (objects, background, depth)
         # added for debug purposes or for use in special cases
@@ -317,14 +316,14 @@ def main(path, root, ann_file, video_size=2 * 35, amount=20, strip=False, array=
             # TODO: implement a case for neither a video nor a strip
             pass
 
-        print("Strip no." + str(i+1) + " is done " + "category " + str(category))
+        print("Strip no." + str(i + 1) + " is done " + "category " + str(category))
 
 
 if __name__ == '__main__':
     args = docopt(__doc__)
     print(args)
-    shape = int(args['--shape'])
-    shape = (shape, shape)
+    # shape = int(args['--shape'])
+    shape = (512, 256)
     main(args['<images_path>'], args['<coco-path>'], args['<json-path>'],
          int(args['--video_size']), int(args['--amount']), args['--make_strip'], args['--make_array'],
          video=False, shape=shape)
