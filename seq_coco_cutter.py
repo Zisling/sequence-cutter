@@ -8,6 +8,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from PIL import Image, ImageFilter
 
 
 def getClassName(classID, cats):
@@ -111,10 +112,17 @@ for strip in strips:
             else:
                 item_key_to_seq_masked[int(item_id % 1e6 + strip_index * 1e6)] = [mask]
     strip_index += 1
+
 for key in item_key_to_seq_masked.keys():
     print(key)
-    if len(item_key_to_seq_masked[key]) >= 10:
+    if len(item_key_to_seq_masked[key]) == 16:
         print(len(item_key_to_seq_masked[key]))
-        for mask in item_key_to_seq_masked[key]:
-            plt.imshow(mask)
-            plt.show()
+        # print(item_key_to_seq_masked[key])
+        imgs = item_key_to_seq_masked[key]
+        for i in range(len(imgs)):
+            img = Image.fromarray(np.uint8(imgs[i]*255), "RGB")
+            new_img = img.resize((512, 256))
+            imgs[i] = np.array(new_img)
+        imgs = np.array(imgs)
+        np.save('./image_strips/new_type/' + str(key).zfill(8) + '.npy', imgs)
+
