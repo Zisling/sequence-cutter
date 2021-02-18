@@ -71,7 +71,7 @@ def get_Mask_Strip(filterClasses: list, coco, dataDir, cats, catIds, imgIds, str
     return strip_and_item_id
 
 
-def get_Masked_Strips(filterClasses: list, coco, dataDir, section: tuple = (0, 1)):
+def get_Masked_Strips(filterClasses: list, coco, dataDir):
     catIDs = coco.getCatIds()
     cats = coco.loadCats(catIDs)
     catIds = coco.getCatIds(catNms=filterClasses)
@@ -84,7 +84,7 @@ def get_Masked_Strips(filterClasses: list, coco, dataDir, section: tuple = (0, 1
     strips_ids = find_sequences_in_list(imgIds, seq_len=16)
     print("Number of strips containing all the classes:", len(strips_ids))
     strips_list = []
-    for i in range(section[1] * len(strips_ids)):  # dividing for limiting the amount
+    for i in range(len(strips_ids)):  # dividing for limiting the amount
         strips_list.append(get_Mask_Strip(filterClasses, coco, dataDir, cats, catIds, imgIds, strips_ids[i]))
     return strips_list
 
