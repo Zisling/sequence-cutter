@@ -3,8 +3,6 @@ import numpy as np
 import skimage.io as io
 import random
 import os
-import cv2
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -71,7 +69,7 @@ def get_Mask_Strip(filterClasses: list, coco, dataDir, cats, catIds, imgIds, str
     return strip_and_item_id
 
 
-def get_Masked_Strips(filterClasses: list, coco, dataDir):
+def get_Masked_Strips(filterClasses: list, coco, dataDir, section):
     catIDs = coco.getCatIds()
     cats = coco.loadCats(catIDs)
     catIds = coco.getCatIds(catNms=filterClasses)
@@ -82,9 +80,9 @@ def get_Masked_Strips(filterClasses: list, coco, dataDir):
     imgIds = list(imgIds)
     print("Number of images containing all the  classes:", len(imgIds))
     strips_ids = find_sequences_in_list(imgIds, seq_len=16)
-    print("Number of strips containing all the classes:", len(strips_ids))
+    print("Number of continous images containing all the classes:", len(strips_ids))
     strips_list = []
-    for i in range(len(strips_ids)):  # dividing for limiting the amount
+    for i in range(section[0] * (len(strips_ids)//50) ,section[1] * (len(strips_ids)//50)):  # dividing for limiting the amount
         strips_list.append(get_Mask_Strip(filterClasses, coco, dataDir, cats, catIds, imgIds, strips_ids[i]))
     return strips_list
 
@@ -99,33 +97,41 @@ coco = COCO(annFile)
 # print('The class name is', getClassName(77, cats))
 
 
-filterClasses = ['TROOP', 'SERGEANT', 'SHOTGUY', 'CHAINGUY', 'UNDEAD', 'HEAD', 'POSSESSED']
+filterClasses = ['TROOP', 'SHOTGUY', 'CHAINGUY', 'UNDEAD', 'HEAD', 'POSSESSED']
 
 #### GENERATE A SEGMENTATION MASK ####
 # filterClasses = ['TROOP', 'POSSESSED', 'SHOTGUY', 'HEAD', 'FIRE', 'CHAINGUY', 'MISC2', 'UNDEAD', 'TRACER', 'MISC19',
 #                  'MISC43', 'HEADSHOT', 'TFOG', 'SKULL', 'BRUISER', 'BLOOD', 'SERGEANT']
-strips = get_Masked_Strips(filterClasses, coco, dataDir)
-item_key_to_seq_masked = dict()
-strip_index = 1
-for strip in strips:
-    for frame in strip:
-        for item_id, mask in frame:
-            if int(item_id % 1e6 + strip_index * 1e6) in item_key_to_seq_masked.keys():
-                item_key_to_seq_masked[int(item_id % 1e6 + strip_index * 1e6)].append(mask)
-            else:
-                item_key_to_seq_masked[int(item_id % 1e6 + strip_index * 1e6)] = [mask]
-    strip_index += 1
-item_key_to_seq_masked = {key: value for (key, value) in item_key_to_seq_masked.items() if len(value) == 16}
-print(len(item_key_to_seq_masked.keys()), 'amount to save')
-for key in item_key_to_seq_masked.keys():
-    # print(key)
-    if len(item_key_to_seq_masked[key]) == 16:
-        # print(len(item_key_to_seq_masked[key]))
-        # print(item_key_to_seq_masked[key])
-        imgs = item_key_to_seq_masked[key]
-        for i in range(len(imgs)):
-            img = Image.fromarray(np.uint8(imgs[i] * 255), "RGB")
-            new_img = img.resize((512, 256))
-            imgs[i] = np.array(new_img)
-        imgs = np.array(imgs)
-        np.save('./image_strips/new_type/' + str(key).zfill(8) + '.npy', imgs)
+for classes in filterClasses:
+  os.makedirs('image_strips/'+classes)  
+  print('cutting' , classes)
+  strip_index = 1
+  for k in range(50):
+    print('section',k,'of',50)
+    strips = get_Masked_Strips([classes], coco, dataDir, (k,k+1))
+    item_key_to_seq_masked = dict()
+    for strip in strips:
+        for frame in strip:
+            for item_id, mask in frame:
+                if int(item_id % 1e6 + strip_index * 1e6) in item_key_to_seq_masked.keys():
+                    item_key_to_seq_masked[int(item_id % 1e6 + strip_index * 1e6)].append(mask)
+                else:
+                    item_key_to_seq_masked[int(item_id % 1e6 + strip_index * 1e6)] = [mask]
+        strip_index += 1
+    item_key_to_seq_masked = {key: value for (key, value) in item_key_to_seq_masked.items() if len(value) == 16}
+    amount_to_save = len(item_key_to_seq_masked.keys())
+    print(amount_to_save , 'amount to save')
+    for step, key in enumerate(item_key_to_seq_masked.keys()):
+        # print(key)
+        if len(item_key_to_seq_masked[key]) == 16:
+            # print(len(item_key_to_seq_masked[key]))
+            # print(item_key_to_seq_masked[key])
+            if step % 10 == 0:
+              print(step , 'out of ', amount_to_save)
+            imgs = item_key_to_seq_masked[key]
+            for i in range(len(imgs)):
+                img = Image.fromarray(np.uint8(imgs[i] * 255), "RGB")
+                new_img = img.resize((512, 256))
+                imgs[i] = np.array(new_img)
+            imgs = np.array(imgs)
+            np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '.npy', imgs)
