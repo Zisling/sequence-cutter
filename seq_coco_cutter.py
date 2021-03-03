@@ -212,4 +212,4 @@ for classes in filterClasses:
                 optical_flow = calc_optical_flow(imgs)
                 # print(len(optical_flow) , 'optical flow done')
                 np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '.npy', imgs)
-                np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '-of' +'.npy', imgs)
+                np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '-of' +'.npy', optical_flow)
