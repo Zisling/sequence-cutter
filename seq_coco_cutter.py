@@ -2,6 +2,7 @@ from pycocotools.coco import COCO
 import numpy as np
 import skimage.io as io
 import random
+import matplotlib.image as mpimg
 import os
 import cv2 as cv
 from PIL import Image, ImageFilter
@@ -110,14 +111,14 @@ def get_Mask(filterClasses: list, coco, dataDir, cats, catIds, imgIds, image_id=
         # load and display a random image
         image_id = np.random.randint(0, len(imgIds))
     img = coco.loadImgs(imgIds[image_id])[0]  # remove from list
-    I = io.imread('{}/{}'.format(dataDir, img['file_name'])) / 255.0  # load real image
+    I = mpimg.imread('{}/{}'.format(dataDir, img['file_name']))  # load real image
     ann_ids = coco.getAnnIds(imgIds=img['id'], catIds=catIds, iscrowd=None)
     anns = coco.loadAnns(ann_ids)
     masks, items_id = crate_Mask(anns, filterClasses, coco, img, cats)
     return [I[:, :, 0:3] * np.reshape(Mask, (200, 320, 1)) for Mask in masks], items_id
 
 
-def find_sequences_in_list(img_ids, seq_len=10):
+def find_sequences_in_list(img_ids, seq_len=11):
     old_id = img_ids[0]
     seq = [0]
     index = 1

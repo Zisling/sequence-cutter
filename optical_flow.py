@@ -1,6 +1,8 @@
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
+
+
 # img_array = np.load('./image_strips/0/00000049.npy')
 # img_array = img_array[:, :, :, 0:3]
 
@@ -82,9 +84,8 @@ def calc_optical_flow(video):
 
 
 # x = calc_optical_flow(img_array)
-x = np.load('01030882-of.npy')
-y = np.load('01030882.npy')
-out = cv.VideoWriter('pt.avi', cv.VideoWriter_fourcc(*'DIVX'), 35, (x.shape[1], x.shape[2]))
+x = np.load('./image_strips/TROOP/01033267.npy', allow_pickle=True)
+y, x = x
 print(len(x))
 for i in range(len(x)):
     plt.imshow(y[i])
@@ -93,9 +94,3 @@ for i in range(len(x)):
     plt.show()
     plt.imshow(y[i+1])
     plt.show()
-    # flip_im = np.zeros_like(im)
-    # flip_im[:, :, 0] = im[:, :, 2]
-    # flip_im[:, :, 1] = im[:, :, 1]
-    # flip_im[:, :, 2] = im[:, :, 0]
-    # out.write(im)
-# out.release()
