@@ -171,7 +171,8 @@ coco = COCO(annFile)
 # print('The class name is', getClassName(77, cats))
 
 
-filterClasses = ['TROOP', 'SHOTGUY', 'CHAINGUY', 'UNDEAD', 'HEAD', 'POSSESSED']
+filterClasses = ['TROOP']
+# filterClasses = ['TROOP', 'SHOTGUY', 'CHAINGUY', 'UNDEAD', 'HEAD', 'POSSESSED']
 
 #### GENERATE A SEGMENTATION MASK ####
 # filterClasses = ['TROOP', 'POSSESSED', 'SHOTGUY', 'HEAD', 'FIRE', 'CHAINGUY', 'MISC2', 'UNDEAD', 'TRACER', 'MISC19',
@@ -209,5 +210,6 @@ for classes in filterClasses:
                     imgs[i] = np.array(new_img)
                 imgs = np.array(imgs)
                 optical_flow = calc_optical_flow(imgs)
-                print(len(optical_flow) , 'optical flow done')
-                # np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '.npy', imgs)
+                # print(len(optical_flow) , 'optical flow done')
+                np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '.npy', imgs)
+                np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '-of' +'.npy', imgs)
