@@ -180,7 +180,7 @@ for classes in filterClasses:
     os.makedirs('image_strips/' + classes)
     print('cutting', classes)
     strip_index = 1
-    for k in range(50):
+    for k in range(2):
         print('section', k, 'of', 50)
         strips = get_Masked_Strips([classes], coco, dataDir, (k, k + 1))
         item_key_to_seq_masked = dict()
@@ -209,4 +209,5 @@ for classes in filterClasses:
                     imgs[i] = np.array(new_img)
                 imgs = np.array(imgs)
                 optical_flow = calc_optical_flow(imgs)
-                np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '.npy', imgs)
+                print(len(optical_flow) , 'optical flow done')
+                # np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '.npy', imgs)
