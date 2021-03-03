@@ -154,7 +154,7 @@ def get_Masked_Strips(filterClasses: list, coco, dataDir, section):
         imgIds |= set(coco.getImgIds(catIds=[id]))
     imgIds = list(imgIds)
     print("Number of images containing all the  classes:", len(imgIds))
-    strips_ids = find_sequences_in_list(imgIds, seq_len=11)
+    strips_ids = find_sequences_in_list(imgIds, seq_len=16)
     print("Number of continous images containing all the classes:", len(strips_ids))
     strips_list = []
     for i in range(section[0] * (len(strips_ids) // 50),
@@ -164,7 +164,7 @@ def get_Masked_Strips(filterClasses: list, coco, dataDir, section):
 
 
 dataDir = '../cocodoom'
-dataType = 'train'
+dataType = 'test'
 annFile = '{}/run-full-{}.json'.format(dataDir, dataType)
 
 # Initialize the COCO api for instance annotations
@@ -180,7 +180,7 @@ filterClasses = ['TROOP']
 # filterClasses = ['TROOP', 'POSSESSED', 'SHOTGUY', 'HEAD', 'FIRE', 'CHAINGUY', 'MISC2', 'UNDEAD', 'TRACER', 'MISC19',
 #                  'MISC43', 'HEADSHOT', 'TFOG', 'SKULL', 'BRUISER', 'BLOOD', 'SERGEANT']
 for classes in filterClasses:
-    os.makedirs('image_strips/' + classes)
+    os.makedirs('image_strips/' + classes+'_test')
     print('cutting', classes)
     strip_index = 1
     for k in range(50):
@@ -195,12 +195,12 @@ for classes in filterClasses:
                     else:
                         item_key_to_seq_masked[int(item_id % 1e6 + strip_index * 1e6)] = [mask]
             strip_index += 1
-        item_key_to_seq_masked = {key: value for (key, value) in item_key_to_seq_masked.items() if len(value) == 11}
+        item_key_to_seq_masked = {key: value for (key, value) in item_key_to_seq_masked.items() if len(value) == 16}
         amount_to_save = len(item_key_to_seq_masked.keys())
         print(amount_to_save, 'amount to save')
         for step, key in enumerate(item_key_to_seq_masked.keys()):
             # print(key)
-            if len(item_key_to_seq_masked[key]) == 11:
+            if len(item_key_to_seq_masked[key]) == 16:
                 # print(len(item_key_to_seq_masked[key]))
                 # print(item_key_to_seq_masked[key])
                 if step % 10 == 0:
@@ -212,6 +212,6 @@ for classes in filterClasses:
                     imgs[i] = np.array(new_img)
                 imgs = np.array(imgs)
                 optical_flow = calc_optical_flow(imgs)
-                imgs_and_flow = np.array([imgs, optical_flow])
+                imgs_and_flow = np.array([imgs, optical_flow], dtype=np.object)
                 # print(len(optical_flow) , 'optical flow done')
-                np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '.npy', imgs_and_flow)
+                np.save('./image_strips/' + classes + '_test/' + str(key).zfill(8) + '.npy', imgs_and_flow)
