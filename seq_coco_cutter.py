@@ -181,7 +181,7 @@ for classes in filterClasses:
     os.makedirs('image_strips/' + classes)
     print('cutting', classes)
     strip_index = 1
-    for k in range(2):
+    for k in range(50):
         print('section', k, 'of', 50)
         strips = get_Masked_Strips([classes], coco, dataDir, (k, k + 1))
         item_key_to_seq_masked = dict()
