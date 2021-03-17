@@ -3,6 +3,7 @@ import numpy as np
 import skimage.io as io
 import random
 import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
 import os
 import cv2 as cv
 from PIL import Image, ImageFilter
@@ -91,18 +92,31 @@ def getClassName(classID, cats):
     return "None"
 
 
+def crate_bbox(x, y, width, height, size):
+    bbox_matrix = np.zeros(size)
+    for i in range(x, x + width):
+        for j in range(y, y + height):
+            if i < size[1] and j < size[0]:
+                bbox_matrix[j, i] = 1
+    return bbox_matrix
+
+
 def crate_Mask(anns, filterClasses, coco, img, cats):
     #### GENERATE A SEGMENTATION MASK ####
     mask_list = []
+    bbox_list = []
     mask_to_id = []
     for i in range(len(anns)):
         mask_res = np.zeros((img['height'], img['width']))
         className = getClassName(anns[i]['category_id'], cats)
         if className in filterClasses:
             mask_res = np.maximum(coco.annToMask(anns[i]), mask_res)
+            [x, y, w, h] = anns[i]['bbox']
+            bbox = crate_bbox(x, y, w, h, (img['height'], img['width']))
             mask_list.append(mask_res)
+            bbox_list.append(bbox)
             mask_to_id.append(anns[i]['id'])
-    return mask_list, mask_to_id
+    return mask_list, mask_to_id, bbox_list
 
 
 def get_Mask(filterClasses: list, coco, dataDir, cats, catIds, imgIds, image_id=None):
@@ -114,8 +128,9 @@ def get_Mask(filterClasses: list, coco, dataDir, cats, catIds, imgIds, image_id=
     I = mpimg.imread('{}/{}'.format(dataDir, img['file_name']))  # load real image
     ann_ids = coco.getAnnIds(imgIds=img['id'], catIds=catIds, iscrowd=None)
     anns = coco.loadAnns(ann_ids)
-    masks, items_id = crate_Mask(anns, filterClasses, coco, img, cats)
-    return [I[:, :, 0:3] * np.reshape(Mask, (200, 320, 1)) for Mask in masks], items_id
+    masks, items_id, bboxs = crate_Mask(anns, filterClasses, coco, img, cats)
+    bboxs = np.stack((bboxs, bboxs, bboxs), axis=3)
+    return [I[:, :, 0:3] * np.reshape(Mask, (200, 320, 1)) for Mask in masks], items_id, bboxs
 
 
 def find_sequences_in_list(img_ids, seq_len=11):
@@ -138,10 +153,12 @@ def find_sequences_in_list(img_ids, seq_len=11):
 
 def get_Mask_Strip(filterClasses: list, coco, dataDir, cats, catIds, imgIds, strips_ids):
     strip_and_item_id = []
+    strip_bbox_and_item_id = []
     for ID in strips_ids:
-        masks, items_id = get_Mask(filterClasses, coco, dataDir, cats, catIds, imgIds, image_id=ID)
+        masks, items_id, bboxs = get_Mask(filterClasses, coco, dataDir, cats, catIds, imgIds, image_id=ID)
         strip_and_item_id.append(zip(items_id, masks))
-    return strip_and_item_id
+        strip_bbox_and_item_id.append(zip(items_id, bboxs))
+    return strip_and_item_id, strip_bbox_and_item_id
 
 
 def get_Masked_Strips(filterClasses: list, coco, dataDir, section):
@@ -154,17 +171,20 @@ def get_Masked_Strips(filterClasses: list, coco, dataDir, section):
         imgIds |= set(coco.getImgIds(catIds=[id]))
     imgIds = list(imgIds)
     print("Number of images containing all the  classes:", len(imgIds))
-    strips_ids = find_sequences_in_list(imgIds, seq_len=16)
+    strips_ids = find_sequences_in_list(imgIds, seq_len=11)
     print("Number of continous images containing all the classes:", len(strips_ids))
     strips_list = []
-    for i in range(section[0] * (len(strips_ids) // 50),
-                   section[1] * (len(strips_ids) // 50)):  # dividing for limiting the amount
-        strips_list.append(get_Mask_Strip(filterClasses, coco, dataDir, cats, catIds, imgIds, strips_ids[i]))
-    return strips_list
+    strips_bbox_list = []
+    for i in range(section[0] * (len(strips_ids) // 100),
+                   section[1] * (len(strips_ids) // 100)):  # dividing for limiting the amount
+        strips_noraml, strips_bbox = get_Mask_Strip(filterClasses, coco, dataDir, cats, catIds, imgIds, strips_ids[i])
+        strips_list.append(strips_noraml)
+        strips_bbox_list.append(strips_bbox)
+    return strips_list, strips_bbox_list
 
 
 dataDir = '../cocodoom'
-dataType = 'test'
+dataType = 'train'
 annFile = '{}/run-full-{}.json'.format(dataDir, dataType)
 
 # Initialize the COCO api for instance annotations
@@ -180,38 +200,50 @@ filterClasses = ['TROOP']
 # filterClasses = ['TROOP', 'POSSESSED', 'SHOTGUY', 'HEAD', 'FIRE', 'CHAINGUY', 'MISC2', 'UNDEAD', 'TRACER', 'MISC19',
 #                  'MISC43', 'HEADSHOT', 'TFOG', 'SKULL', 'BRUISER', 'BLOOD', 'SERGEANT']
 for classes in filterClasses:
-    os.makedirs('image_strips/' + classes+'_test')
+    os.makedirs('image_strips/' + classes)
     print('cutting', classes)
     strip_index = 1
-    for k in range(50):
-        print('section', k, 'of', 50)
-        strips = get_Masked_Strips([classes], coco, dataDir, (k, k + 1))
+    for k in range(1):
+        print('section', k+1, 'of', 100)
+        strips, bbox_strips = get_Masked_Strips([classes], coco, dataDir, (k, k + 1))
         item_key_to_seq_masked = dict()
-        for strip in strips:
-            for frame in strip:
-                for item_id, mask in frame:
+        item_key_to_seq_bbox = dict()
+        for strip, bbox_strips in zip(strips, bbox_strips):  # replace here to BBOX if you want the bounding boxs
+            for frame, bbox_frame in zip(strip, bbox_strips):
+                for (item_id, mask), (_, bbox) in zip(frame, bbox_frame):
                     if int(item_id % 1e6 + strip_index * 1e6) in item_key_to_seq_masked.keys():
                         item_key_to_seq_masked[int(item_id % 1e6 + strip_index * 1e6)].append(mask)
+                        item_key_to_seq_bbox[int(item_id % 1e6 + strip_index * 1e6)].append(bbox)
                     else:
                         item_key_to_seq_masked[int(item_id % 1e6 + strip_index * 1e6)] = [mask]
+                        item_key_to_seq_bbox[int(item_id % 1e6 + strip_index * 1e6)] = [bbox]
             strip_index += 1
-        item_key_to_seq_masked = {key: value for (key, value) in item_key_to_seq_masked.items() if len(value) == 16}
+        item_key_to_seq_masked = {key: value for (key, value) in item_key_to_seq_masked.items() if len(value) == 11}
         amount_to_save = len(item_key_to_seq_masked.keys())
         print(amount_to_save, 'amount to save')
         for step, key in enumerate(item_key_to_seq_masked.keys()):
             # print(key)
-            if len(item_key_to_seq_masked[key]) == 16:
+            if len(item_key_to_seq_masked[key]) == 11:
                 # print(len(item_key_to_seq_masked[key]))
                 # print(item_key_to_seq_masked[key])
                 if step % 10 == 0:
                     print(step, 'out of ', amount_to_save)
                 imgs = item_key_to_seq_masked[key]
+                bboxs = item_key_to_seq_bbox[key]
                 for i in range(len(imgs)):
                     img = Image.fromarray(np.uint8(imgs[i] * 255), "RGB")
+                    bbox = Image.fromarray(np.uint8(bboxs[i] * 255), "RGB")
                     new_img = img.resize((512, 256))
+                    new_bbox = bbox.resize((512, 256))
                     imgs[i] = np.array(new_img)
+                    bboxs[i] = np.array(new_bbox)
                 imgs = np.array(imgs)
+                bboxs = np.array(bboxs)
                 optical_flow = calc_optical_flow(imgs)
                 imgs_and_flow = np.array([imgs, optical_flow], dtype=np.object)
+                plt.imshow(bboxs[0])
+                plt.show()
+                plt.imshow(imgs[0])
+                plt.show()
                 # print(len(optical_flow) , 'optical flow done')
-                np.save('./image_strips/' + classes + '_test/' + str(key).zfill(8) + '.npy', imgs_and_flow)
+                # np.save('./image_strips/' + classes + '/' + str(key).zfill(8) + '.npy', imgs_and_flow)

@@ -84,13 +84,13 @@ def calc_optical_flow(video):
 
 
 # x = calc_optical_flow(img_array)
-x = np.load('./image_strips/TROOP/01033267.npy', allow_pickle=True)
-y, x = x
-print(len(x))
-for i in range(len(x)):
-    plt.imshow(y[i])
+optical_flow = np.load('./image_strips/TROOP/01030882.npy', allow_pickle=True)
+img, optical_flow = optical_flow
+print(len(optical_flow))
+for i in range(len(optical_flow)):
+    plt.imshow(img[i])
     plt.show()
-    plt.imshow(x[i])
+    plt.imshow(optical_flow[i])
     plt.show()
-    plt.imshow(y[i+1])
+    plt.imshow(img[i + 1])
     plt.show()
