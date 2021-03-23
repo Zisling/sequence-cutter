@@ -110,12 +110,12 @@ def crate_Mask(anns, filterClasses, coco, img, cats):
         className = getClassName(anns[i]['category_id'], cats)
         if className in filterClasses:
             [x, y, w, h] = anns[i]['bbox']
+            bbox_data_list.append([x, y, w, h])
             bbox_new = crate_bbox(x, y, w, h, (img['height'], img['width']))
             mask_res = np.maximum(coco.annToMask(anns[i]), mask_res)
             mask_list.append(mask_res)
             bbox_list.append(bbox_new)
             mask_to_id.append(anns[i]['id'])
-            bbox_data_list.append([x, y, w, h])
     return mask_list, mask_to_id, bbox_list, bbox_data_list
 
 
@@ -170,7 +170,7 @@ def get_Masked_Strips(filterClasses: list, coco, dataDir, section):
         imgIds |= set(coco.getImgIds(catIds=[id]))
     imgIds = list(imgIds)
     print("Number of images containing all the  classes:", len(imgIds))
-    strips_ids = find_sequences_in_list(imgIds, seq_len=11)
+    strips_ids = find_sequences_in_list(np.array(imgIds), seq_len=11)
     print("Number of continous images containing all the classes:", len(strips_ids))
     strips_list = []
     for i in range(section[0] * (len(strips_ids) // 100),
@@ -200,7 +200,7 @@ for classes in filterClasses:
     os.makedirs('image_strips/' + classes)
     print('cutting', classes)
     strip_index = 1
-    for k in range(1):
+    for k in range(1, 2):
         print('section', k + 1, 'of', 100)
         strips = get_Masked_Strips([classes], coco, dataDir, (k, k + 1))
         item_key_to_seq_masked_seq_bbox_seq_bbox_data = dict()
@@ -216,7 +216,7 @@ for classes in filterClasses:
             strip_index += 1
         item_key_to_seq_masked = {key: value for (key, value) in item_key_to_seq_masked_seq_bbox_seq_bbox_data.items()
                                   if len(value) == 11}
-        amount_to_save = len(item_key_to_seq_masked.keys()[0])
+        amount_to_save = len(item_key_to_seq_masked.keys())
         print(amount_to_save, 'amount to save')
         for step, key in enumerate(item_key_to_seq_masked_seq_bbox_seq_bbox_data.keys()):
             if len(item_key_to_seq_masked_seq_bbox_seq_bbox_data[key]) >= 11:
