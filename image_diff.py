@@ -21,7 +21,6 @@ def find_box_cords(a):
 
 
 total_SSIM = 0
-total_MSE = 0
 total_num_of_frames = 0
 total_strips = 0
 dir = 'labels/'
@@ -95,7 +94,6 @@ for filename in os.listdir(dir):
                     total_strips += 1
                 strip_len = 0
                 old_index = Bindex
-print('SSIM', total_SSIM)
-print('total', total_SSIM + total_MSE)
+print('total', total_SSIM)
 print('total_num_of_frames', total_num_of_frames)
 print('total_strips', total_strips)
