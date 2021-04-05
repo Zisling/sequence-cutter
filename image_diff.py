@@ -96,7 +96,6 @@ for filename in os.listdir(dir):
                 strip_len = 0
                 old_index = Bindex
 print('SSIM', total_SSIM)
-print('MSE', total_MSE)
 print('total', total_SSIM + total_MSE)
 print('total_num_of_frames', total_num_of_frames)
 print('total_strips', total_strips)
