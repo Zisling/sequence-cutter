@@ -53,7 +53,7 @@ if __name__ == '__main__':
                     jumped_frame = False
                     continue
                 MSE = mean_squared_error(grayA, grayB)
-                if strip_len == 11 and jumped_frame:
+                if strip_len == 11:
                     strip_num += 1
                     strip_len = 0
                     jumped_frame = False
@@ -61,6 +61,7 @@ if __name__ == '__main__':
                 if MSE < 200:
                     strip_len += 1
                     im_count += 1
+                    jumped_frame = False
                     # f, axarr = plt.subplots(1, 2)
                     # axarr[0].imshow(imageA)
                     # axarr[0].set_title('A for ass')
