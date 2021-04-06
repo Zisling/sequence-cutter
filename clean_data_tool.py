@@ -20,13 +20,15 @@ def find_box_cords(a):
 if __name__ == '__main__':
     im_count = 0
     total = 0
-    strip_len = 0
     strip_num = 0
     dirr = 'image_strips/TROOP/'
     for filename in os.listdir(dirr):
         if filename.endswith('.npy'):
             img, flow, bbox, data = np.load(dirr + filename, allow_pickle=True)
             total += len(img)
+            strip_len = 0
+            jumped_frame = False
+
             for i in range(len(img) - 1):
                 xA, x_wA, yA, y_hA = find_box_cords(bbox[i][:, :, 0])
                 xB, x_wB, yB, y_hB = find_box_cords(bbox[i + 1][:, :, 0])
@@ -47,11 +49,14 @@ if __name__ == '__main__':
                     (score, _) = structural_similarity(grayA, grayB, full=True)
                 except ValueError:
                     print(f'grayA.shape: {grayA.shape} grayB.shape{grayB.shape}')
+                    strip_len = 0
+                    jumped_frame = False
                     continue
                 MSE = mean_squared_error(grayA, grayB)
-                if strip_len == 9:
+                if strip_len == 11 and jumped_frame:
                     strip_num += 1
                     strip_len = 0
+                    jumped_frame = False
 
                 if MSE < 200:
                     strip_len += 1
@@ -66,6 +71,10 @@ if __name__ == '__main__':
                     #        ha='center', va='center', size='medium')
                     # plt.show()
                 else:
-                    strip_len = 0
+                    if jumped_frame:
+                        strip_len = 0
+                        jumped_frame = False
+                    else:
+                        jumped_frame = True
 
     print(f'total: {total} im_count:{im_count} strip_num:{strip_num}')
