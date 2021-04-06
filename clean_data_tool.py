@@ -30,13 +30,21 @@ if __name__ == '__main__':
             jumped_frame = False
 
             for i in range(len(img) - 1):
-                xA, x_wA, yA, y_hA = find_box_cords(bbox[i][:, :, 0])
-                xB, x_wB, yB, y_hB = find_box_cords(bbox[i + 1][:, :, 0])
-                imageA = img[i][xA:x_wA, yA:y_hA]
-                imageB = img[i + 1][xB:x_wB, yB:y_hB]
+                idxA = i
+                idxB = i + 1
+                if jumped_frame:
+                    idxA = i - 1
+                xA, x_wA, yA, y_hA = find_box_cords(bbox[idxA][:, :, 0])
+                xB, x_wB, yB, y_hB = find_box_cords(bbox[idxB][:, :, 0])
+                imageA = img[idxA][xA:x_wA, yA:y_hA]
+                imageB = img[idxB][xB:x_wB, yB:y_hB]
 
-                ratioA = imageA.shape[0] / imageA.shape[1]
-                ratioB = imageB.shape[0] / imageB.shape[1]
+                ratioA = imageA.shape[1] / imageA.shape[0]
+                ratioB = imageB.shape[1] / imageB.shape[0]
+                if ratioA < 0.5 or ratioA > 3.5 or ratioB < 0.5 or ratioB > 3.5:
+                    strip_len = 0
+                    jumped_frame = False
+                    continue
 
                 interpolation = cv2.INTER_CUBIC if imageA.shape[0] > imageB.shape[0] else cv2.INTER_AREA
                 imageB = cv2.resize(imageB, (imageA.shape[1], imageA.shape[0]), interpolation=interpolation)
@@ -46,13 +54,12 @@ if __name__ == '__main__':
                 # compute the Structural Similarity Index (SSIM) between the two
                 # images, ensuring that the difference image is returned
                 try:
-                    (score, _) = structural_similarity(grayA, grayB, full=True)
+                    MSE = mean_squared_error(grayA, grayB)
                 except ValueError:
-                    print(f'grayA.shape: {grayA.shape} grayB.shape{grayB.shape}')
+                    print(f'Failed on MSE')
                     strip_len = 0
                     jumped_frame = False
                     continue
-                MSE = mean_squared_error(grayA, grayB)
                 if strip_len == 11:
                     strip_num += 1
                     strip_len = 0
@@ -68,7 +75,7 @@ if __name__ == '__main__':
                     # axarr[1].imshow(imageB)
                     # axarr[1].set_title('B for butt')
                     # f.text(0.5, 0.04,
-                    #        f'-SSIM:{score:.5f} MSE:{MSE:.2f}\nratio A:{ratioA} ratio B:{ratioB}',
+                    #        f'-MSE:{MSE:.2f}\nratio A:{ratioA} ratio B:{ratioB}',
                     #        ha='center', va='center', size='medium')
                     # plt.show()
                 else:
