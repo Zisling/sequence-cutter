@@ -5,7 +5,7 @@ import numpy as np
 from skimage.metrics import mean_squared_error
 
 def calc_optical_flow(video):
-    """
+    """k
     :param video: video
     :type video:np.array
     :return: optical flow as an array of len(video)-1
