@@ -4,7 +4,6 @@ import cv2 as cv
 import numpy as np
 from skimage.metrics import mean_squared_error
 
-
 def calc_optical_flow(video):
     """
     :param video: video
@@ -111,10 +110,13 @@ if __name__ == '__main__':
                     strip_img_op = calc_optical_flow(np.array(strip_img))
                     strip_data = np.array([strip_img, strip_img_op, strip_bbox], dtype=np.object)
                     np.save('./image_strips/CLEAN/' + str(strip_num).zfill(8) + '.npy', strip_data)
+                    # for im in strip_img:
+                    #     plt.imshow(im)
+                    #     plt.show()
+                    jumped_frame = False
                     strip_img.clear()
                     strip_bbox.clear()
                     strip_len = 0
-                    jumped_frame = False
 
                 idxA = i
                 idxB = i + 1
@@ -139,15 +141,20 @@ if __name__ == '__main__':
 
                 # compute the Structural Similarity Index (SSIM) between the two
                 # images, ensuring that the difference image is returned
-                try:
-                    MSE = mean_squared_error(grayA, grayB)
-                except ValueError:
-                    print(f'Failed on MSE')
-                    strip_len = 0
-                    jumped_frame = False
-                    continue
 
-                if MSE < 200:
+                # try:
+                dist0 = wasserstein_distance(histA0, histB0)
+                dist1 = wasserstein_distance(histA1, histB1)
+                dist2 = wasserstein_distance(histA2, histB2)
+                dist = (dist0 + dist1 + dist2) / 3
+                # print(dist)
+                # except ValueError:
+                #     print(f'Failed on EMD')
+                #     strip_len = 0
+                #     jumped_frame = False
+                #     continue
+
+                if dist < 100:
                     strip_img.append(img[idxA])
                     strip_bbox.append(bbox[idxA])
                     strip_len += 1
@@ -164,7 +171,7 @@ if __name__ == '__main__':
                     # axarr[1].imshow(imageB)
                     # axarr[1].set_title('B for butt')
                     # f.text(0.5, 0.04,
-                    #        f'-MSE:{MSE:.2f}\nratio A:{ratioA} ratio B:{ratioB}',
+                    #        f'-EMD:{dist:.4f}\nratio A:{ratioA} ratio B:{ratioB}',
                     #        ha='center', va='center', size='medium')
                     # plt.show()
                 else:
