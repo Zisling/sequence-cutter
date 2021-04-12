@@ -2,7 +2,9 @@ import os
 
 import cv2 as cv
 import numpy as np
-from skimage.metrics import mean_squared_error
+from scipy.stats import wasserstein_distance
+from matplotlib import pyplot as plt
+
 
 def calc_optical_flow(video):
     """k
@@ -129,16 +131,20 @@ if __name__ == '__main__':
 
                 ratioA = imageA.shape[1] / imageA.shape[0]
                 ratioB = imageB.shape[1] / imageB.shape[0]
-                if ratioA < 0.5 or ratioA > 3.5 or ratioB < 0.5 or ratioB > 3.5:
+                if ratioA < 0.5 or ratioA > 3.5 or ratioB < 0.5 or ratioB > 3.5 or imageB.shape[1] <= 20 or \
+                        imageB.shape[0] <= 20:
                     strip_len = 0
                     jumped_frame = False
                     continue
 
                 interpolation = cv.INTER_CUBIC if imageA.shape[0] > imageB.shape[0] else cv.INTER_AREA
                 imageB = cv.resize(imageB, (imageA.shape[1], imageA.shape[0]), interpolation=interpolation)
-                grayA = cv.cvtColor(imageA, cv.COLOR_RGB2GRAY)
-                grayB = cv.cvtColor(imageB, cv.COLOR_RGB2GRAY)
-
+                histA0 = cv.calcHist([imageA], [0], None, [256], [0, 256])[0]
+                histB0 = cv.calcHist([imageB], [0], None, [256], [0, 256])[0]
+                histA1 = cv.calcHist([imageA], [1], None, [256], [0, 256])[0]
+                histB1 = cv.calcHist([imageB], [1], None, [256], [0, 256])[0]
+                histA2 = cv.calcHist([imageA], [2], None, [256], [0, 256])[0]
+                histB2 = cv.calcHist([imageB], [2], None, [256], [0, 256])[0]
                 # compute the Structural Similarity Index (SSIM) between the two
                 # images, ensuring that the difference image is returned
 
