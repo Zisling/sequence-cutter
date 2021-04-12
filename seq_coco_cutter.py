@@ -180,8 +180,10 @@ def get_Masked_Strips(filterClasses: list, coco, dataDir, section):
     return strips_list
 
 
-dataDir = './cocodoom'
-dataType = 'train'
+
+dataDir = '../cocodoom'
+dataType = 'test'
+
 annFile = '{}/run-full-{}.json'.format(dataDir, dataType)
 
 # Initialize the COCO api for instance annotations
