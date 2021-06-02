@@ -131,8 +131,8 @@ def strip_prosses(filename):
 
             ratioA = imageA.shape[1] / imageA.shape[0]
             ratioB = imageB.shape[1] / imageB.shape[0]
-            if ratioA < 0.5 or ratioA > 3.5 or ratioB < 0.5 or ratioB > 3.5 or imageB.shape[1] <= 20 or \
-                    imageB.shape[0] <= 20:
+            if ratioA < 0.5 or ratioA > 3 or ratioB < 0.5 or ratioB > 3 or imageB.shape[1] <= 35 or \
+                    imageB.shape[0] <= 35:
                 strip_len = 0
                 jumped_frame = False
                 continue
