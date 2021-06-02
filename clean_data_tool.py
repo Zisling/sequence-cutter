@@ -4,6 +4,7 @@ import cv2 as cv
 import numpy as np
 from scipy.stats import wasserstein_distance
 from matplotlib import pyplot as plt
+from multiprocessing import Pool
 
 
 def calc_optical_flow(video):
@@ -93,98 +94,108 @@ def find_box_cords(a):
     return out
 
 
-if __name__ == '__main__':
+def strip_prosses(filename):
+    dirr = 'image_strips/TROOP/'
     im_count = 0
     total = 0
-    strip_num = 0
-    dirr = 'image_strips/TROOP/'
-    for filename in os.listdir(dirr):
-        if filename.endswith('.npy'):
-            img, flow, bbox, data = np.load(dirr + filename, allow_pickle=True)
-            total += len(img)
-            strip_len = 0
-            jumped_frame = False
-            strip_img = []
-            strip_bbox = []
-            for i in range(len(img) - 1):
-                if strip_len == 11:
-                    strip_num += 1
-                    strip_img_op = calc_optical_flow(np.array(strip_img))
-                    strip_data = np.array([strip_img, strip_img_op, strip_bbox], dtype=np.object)
-                    np.save('./image_strips/CLEAN/' + str(strip_num).zfill(8) + '.npy', strip_data)
-                    # for im in strip_img:
-                    #     plt.imshow(im)
-                    #     plt.show()
-                    jumped_frame = False
-                    strip_img.clear()
-                    strip_bbox.clear()
-                    strip_len = 0
+    if filename.endswith('.npy'):
+        img, flow, bbox, data = np.load(dirr + filename, allow_pickle=True)
+        total += len(img)
+        strip_num = 0
+        strip_len = 0
+        jumped_frame = False
+        strip_img = []
+        strip_bbox = []
+        for i in range(len(img) - 1):
+            if strip_len == 11:
+                strip_num += 1
+                strip_img_op = calc_optical_flow(np.array(strip_img))
+                strip_data = np.array([strip_img, strip_img_op, strip_bbox], dtype=np.object)
+                np.save('./image_strips/CLEAN/' + str(strip_num).zfill(4) + filename, strip_data)
+                # for im in strip_img:
+                #     plt.imshow(im)
+                #     plt.show()
+                jumped_frame = False
+                strip_img.clear()
+                strip_bbox.clear()
+                strip_len = 0
 
-                idxA = i
-                idxB = i + 1
-                if jumped_frame:
-                    idxA = i - 1
-                xA, x_wA, yA, y_hA = find_box_cords(bbox[idxA][:, :, 0])
-                xB, x_wB, yB, y_hB = find_box_cords(bbox[idxB][:, :, 0])
-                imageA = img[idxA][xA:x_wA, yA:y_hA]
-                imageB = img[idxB][xB:x_wB, yB:y_hB]
+            idxA = i
+            idxB = i + 1
+            if jumped_frame:
+                idxA = i - 1
+            xA, x_wA, yA, y_hA = find_box_cords(bbox[idxA][:, :, 0])
+            xB, x_wB, yB, y_hB = find_box_cords(bbox[idxB][:, :, 0])
+            imageA = img[idxA][xA:x_wA, yA:y_hA]
+            imageB = img[idxB][xB:x_wB, yB:y_hB]
 
-                ratioA = imageA.shape[1] / imageA.shape[0]
-                ratioB = imageB.shape[1] / imageB.shape[0]
-                if ratioA < 0.5 or ratioA > 3.5 or ratioB < 0.5 or ratioB > 3.5 or imageB.shape[1] <= 20 or \
-                        imageB.shape[0] <= 20:
-                    strip_len = 0
-                    jumped_frame = False
-                    continue
+            ratioA = imageA.shape[1] / imageA.shape[0]
+            ratioB = imageB.shape[1] / imageB.shape[0]
+            if ratioA < 0.5 or ratioA > 3.5 or ratioB < 0.5 or ratioB > 3.5 or imageB.shape[1] <= 20 or \
+                    imageB.shape[0] <= 20:
+                strip_len = 0
+                jumped_frame = False
+                continue
 
-                interpolation = cv.INTER_CUBIC if imageA.shape[0] > imageB.shape[0] else cv.INTER_AREA
-                imageB = cv.resize(imageB, (imageA.shape[1], imageA.shape[0]), interpolation=interpolation)
-                histA0 = cv.calcHist([imageA], [0], None, [256], [0, 256])[0]
-                histB0 = cv.calcHist([imageB], [0], None, [256], [0, 256])[0]
-                histA1 = cv.calcHist([imageA], [1], None, [256], [0, 256])[0]
-                histB1 = cv.calcHist([imageB], [1], None, [256], [0, 256])[0]
-                histA2 = cv.calcHist([imageA], [2], None, [256], [0, 256])[0]
-                histB2 = cv.calcHist([imageB], [2], None, [256], [0, 256])[0]
-                # compute the Structural Similarity Index (SSIM) between the two
-                # images, ensuring that the difference image is returned
+            # interpolation = cv.INTER_CUBIC if imageA.shape[0] > imageB.shape[0] else cv.INTER_AREA
+            # imageB = cv.resize(imageB, (imageA.shape[1], imageA.shape[0]), interpolation=interpolation)
+            histA0 = cv.calcHist([imageA], [0], None, [256], [0, 256])[0]
+            histB0 = cv.calcHist([imageB], [0], None, [256], [0, 256])[0]
+            histA1 = cv.calcHist([imageA], [1], None, [256], [0, 256])[0]
+            histB1 = cv.calcHist([imageB], [1], None, [256], [0, 256])[0]
+            histA2 = cv.calcHist([imageA], [2], None, [256], [0, 256])[0]
+            histB2 = cv.calcHist([imageB], [2], None, [256], [0, 256])[0]
+            # compute the Structural Similarity Index (SSIM) between the two
+            # images, ensuring that the difference image is returned
 
-                # try:
-                dist0 = wasserstein_distance(histA0, histB0)
-                dist1 = wasserstein_distance(histA1, histB1)
-                dist2 = wasserstein_distance(histA2, histB2)
-                dist = (dist0 + dist1 + dist2) / 3
-                # print(dist)
-                # except ValueError:
-                #     print(f'Failed on EMD')
-                #     strip_len = 0
-                #     jumped_frame = False
-                #     continue
+            # try:
+            dist0 = wasserstein_distance(histA0, histB0)
+            dist1 = wasserstein_distance(histA1, histB1)
+            dist2 = wasserstein_distance(histA2, histB2)
+            dist = (dist0 + dist1 + dist2) / 3
+            # print(dist)
+            # except ValueError:
+            #     print(f'Failed on EMD')
+            #     strip_len = 0
+            #     jumped_frame = False
+            #     continue
 
-                if dist < 100:
-                    strip_img.append(img[idxA])
-                    strip_bbox.append(bbox[idxA])
+            if dist < 300:
+                strip_img.append(img[idxA])
+                strip_bbox.append(bbox[idxA])
+                strip_len += 1
+                im_count += 1
+                jumped_frame = False
+                if strip_len == 10:
+                    strip_img.append(img[idxB])
+                    strip_bbox.append(bbox[idxB])
                     strip_len += 1
                     im_count += 1
+                # f, axarr = plt.subplots(1, 2)
+                # axarr[0].imshow(imageA)
+                # axarr[0].set_title('A for ass')
+                # axarr[1].imshow(imageB)
+                # axarr[1].set_title('B for butt')
+                # f.text(0.5, 0.04,
+                #        f'-EMD:{dist:.4f}\nratio A:{ratioA} ratio B:{ratioB}',
+                #        ha='center', va='center', size='medium')
+                # plt.show()
+            else:
+                if jumped_frame:
+                    strip_len = 0
                     jumped_frame = False
-                    if strip_len == 10:
-                        strip_img.append(img[idxB])
-                        strip_bbox.append(bbox[idxB])
-                        strip_len += 1
-                        im_count += 1
-                    # f, axarr = plt.subplots(1, 2)
-                    # axarr[0].imshow(imageA)
-                    # axarr[0].set_title('A for ass')
-                    # axarr[1].imshow(imageB)
-                    # axarr[1].set_title('B for butt')
-                    # f.text(0.5, 0.04,
-                    #        f'-EMD:{dist:.4f}\nratio A:{ratioA} ratio B:{ratioB}',
-                    #        ha='center', va='center', size='medium')
-                    # plt.show()
                 else:
-                    if jumped_frame:
-                        strip_len = 0
-                        jumped_frame = False
-                    else:
-                        jumped_frame = True
+                    jumped_frame = True
+    return im_count, total
 
+
+if __name__ == '__main__':
+    dirr = 'image_strips/TROOP/'
+    # for filename in os.listdir(dirr):
+    filenames = os.listdir(dirr)
+    with Pool(6) as p:
+        count_total = p.map(strip_prosses, filenames)
+    im_count = sum([ct[0] for ct in count_total])
+    total = sum([ct[1] for ct in count_total])
+    strip_num = len(count_total)
     print(f'total: {total} im_count:{im_count} strip_num:{strip_num}')
