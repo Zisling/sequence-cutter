@@ -232,8 +232,8 @@ for classes in filterClasses:
                     img, bbox, bbox_data = imgs_bboxs_data[i]
                     img = Image.fromarray(np.uint8(img * 255), "RGB")
                     bbox = Image.fromarray(np.uint8(bbox * 255), "RGB")
-                    new_img = img.resize((512, 256))
-                    new_bbox = bbox.resize((512, 256))
+                    # new_img = img.resize((512, 256))
+                    # new_bbox = bbox.resize((512, 256))
                     imgs.append(np.array(new_img))
                     bboxs.append(np.array(new_bbox))
                     datas.append(bbox_data)
